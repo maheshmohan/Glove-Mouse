@@ -1,0 +1,61 @@
+/*
+GLOVE MOUSE - MAIN PROJECT
+TRANSMITTER SECTION CODE
+DONE BY KRISHNAPRIYA P, MAHESH M, SATHEESH N P, MAHIN JAMAL
+*/
+#include<PinChangeInt.h>
+#include<PinChangeIntConfig.h>
+#include<stdint.h>
+#define LEFT 16
+#define RIGHT 18
+#define MIDDLE 17
+#define EN 15
+
+uint8_t x, y, refx, refy;
+
+void sendPacket(uint8_t adr, uint8_t xval, uint8_t yval, uint8_t sw)
+{
+  Serial.write(adr);
+  Serial.write(xval);
+  Serial.write(yval);
+  Serial.write(sw);
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LEFT,INPUT);
+  pinMode(RIGHT,INPUT);
+  pinMode(MIDDLE,INPUT);
+  pinMode(EN,INPUT);
+
+  attachInterrupt(EN, m_move, RISING);
+  attachInterrupt(1, &l_click, RISING);
+  attachInterrupt(2, &r_click, RISING);
+  attachInterrupt(3, &m_click, RISING);
+}
+
+void loop() {
+  m_move();
+  delay(1);
+}
+
+void m_move(void) {
+  x = analogRead(A0);
+  y = analogRead(A1);
+  sendPacket(0b11111111,x,y,0);
+}
+
+void l_click(void)
+{
+  sendPacket(0xFF, 0, 0, 0x01);
+}
+
+void r_click(void)
+{
+  sendPacket(0xFF, 0, 0, 0x02);
+}
+
+void m_click(void)
+{
+  sendPacket(0xFF, 0, 0, 0x03);
+}
