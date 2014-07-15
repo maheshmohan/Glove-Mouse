@@ -1,0 +1,206 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using System.IO.Ports;
+namespace mouse_move
+{
+  class Program
+  {
+    static bool _continue;
+    static SerialPort _serialPort;
+    
+    [DllImport("USER32.dll", CallingConvention = CallingConvention.StdCall)]
+    private static extern void SetCursorPos(int X, int Y);
+    
+    [DllImport("USER32.dll", CharSet = CharSet.Auto, CallingConvention = Call
+    public static extern void mouse_event(int dwFlags, int dx, int dy, int cB
+    
+    const int MOUSEEVENTF_LEFTDOWN = 0x02;
+    const int MOUSEEVENTF_LEFTUP = 0x04;
+    const int MOUSEEVENTF_RIGHTDOWN = 0x08;
+    const int MOUSEEVENTF_RIGHTUP = 0x10;
+    
+    static void check_motion(int r,int refer,ref int flag1,ref int flag2,ref
+    {
+      if (r > refer)
+      {
+        flag2++;
+        flag1 = 0;
+        flag3 = 0;
+      }
+      
+      if (r < refer)
+      {
+        flag3++;
+        flag1 = 0;
+        flag2 = 0;
+      }
+      
+      if (flag2==3)
+      {
+        a+=1;
+        flag2=2;
+      }
+
+      if (flag3==3)
+      {
+        a-=1;
+        flag3 = 2;
+      }
+    }
+
+    public static void DoMouseClick(int x, int y)
+    {
+      mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, x, y, 0, 0);
+    }
+  
+    public static void DoRightClick(int x, int y)
+    {
+      mouse_event(MOUSEEVENTF_RIGHTDOWN | MOUSEEVENTF_RIGHTUP, x, y, 0, 0);
+    }
+
+    static void Main(string[] args)
+    {
+      int xpos = 683;
+      int ypos = 384;
+      int x, y;
+      int sumx = 0;
+      int sumy = 0;
+      int flag1x = 0;
+      int flag2x = 0;
+      int flag3x = 0;
+      int flag1y = 0;
+      int flag2y = 0;
+      int flag3y = 0;
+      int i = 0;
+      
+      SetCursorPos(xpos, ypos);
+ 
+      // Create a new SerialPort object with default settings.
+      _serialPort = new SerialPort("COM2", 115200, Parity.None, 8,
+        StopBits.One);
+
+      if (_serialPort.IsOpen)
+        _serialPort.Close();
+      _serialPort.Open();
+      _continue = true;
+
+      int sw;
+      int refx = 0;
+      int refy = 0;
+
+      //caliberation
+      for(int j = 0; j < 50; j++){
+        if (_serialPort.ReadByte() == 255)
+        {
+          x = _serialPort.ReadByte();
+          y = _serialPort.ReadByte();
+          
+          i++;
+          
+          sumx += x;
+          sumy += y;
+
+          if (i == 100)
+          {
+            i = 0;
+            refx = sumx / 100;
+            refy = sumy / 100;
+            sumx = 0;
+            sumy = 0;
+          }
+        }
+      }
+      
+      while (_continue)
+      {
+        if (_serialPort.ReadByte() == 255)
+        {
+          x = _serialPort.ReadByte();
+          y = _serialPort.ReadByte();
+          sw = _serialPort.ReadByte();
+          i++;
+
+          sumx += x;
+          sumy += y;
+
+          if (i == 100)
+          {
+            i = 0;
+            refx = sumx / 100;
+            refy = sumy / 100;
+            sumx = 0;
+            sumy = 0;
+          }
+          
+        if(x > (refx-3) && x < (refx + 3)){
+          x = refx;
+        }
+        
+        if (y > (refy - 3) && y < (refy + 3)){
+          y = refy;
+        }
+
+        if(x==refx)
+        {
+          flag1x++;
+          flag2x=0;
+          flag3x=0;
+        }
+        
+        if (flag1x >=10 || (flag2x>0 && x > refx) ||
+            (flag3x>0 && x <refx)){
+          check_motion(x,refx,ref flag1x,ref flag2x,ref flag3x,ref xpos);
+        }
+        
+        if (xpos > 1366)
+          xpos = 1366;
+        
+        if (xpos < 0)
+          xpos = 0;
+        
+        if (ypos > 768)
+          ypos = 768;
+
+        if (ypos < 0)
+          ypos = 0;
+
+        if (flag2x > 0 && x < refx)
+          flag2x=0;
+
+        if (flag3x >0 && x > refx)
+          flag3x=0;
+          
+        if(y==refy)
+        {
+          flag1y++;
+          flag2y=0;
+          flag3y=0;
+        }
+        
+        if ( flag1y >=10 || (flag2y>0 && y > refy) ||
+            ( flag3y>0 && y <refy)){
+          check_motion(y,refy,ref flag1y,ref flag2y,ref flag3y,ref ypos);
+        }
+
+        if (flag2y > 0 && y < refy)
+          flag2y=0;
+        
+        if (flag3y >0 && x > refy)
+          flag3y=0;
+
+        SetCursorPos(xpos, ypos);
+        
+        if (sw == 0x01)
+          DoMouseClick(xpos, ypos);
+
+        if (sw == 0x02)
+          DoRightClick(xpos, ypos);
+        }
+      }
+    }
+  }
+}
